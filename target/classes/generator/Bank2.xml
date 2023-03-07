@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta SYSTEM "uppaal.dtd"><nta><declaration>//
+/**** Crib Notes ****/
+//
+
+//Integers can be up to 15 bits long.
+
+/**|  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |  15 | **/
+/**--------------------------------------------------------------------------------------------**/
+// |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0  |
+// |16384| 8912| 4096| 2048| 1024| 512 | 256 | 128 |  64 |  32 |  16 |  8  |  4  |  2  |  1  |
+
+
+
+// We will reserve 4 bits for each message component, as the max length of a message in this protocol is two components long.
+// Therefore, all the components can be represented as integers between 1 and 127.
+
+// EACH COMPONENT IS AS BELOW:
+//// |  0  |  0  |  0  |  0  |
+//// |  8  |  4  |  2  |  1  |
+
+
+// We reserve ranges of integers to represent certain TYPES as follows.
+// The following components are sent as part of messages in the protocol so are given types for type-checking purposes.
+// Other types, for instance, keys, are never sent and thus need no associated type.
+// All ranges are INCLUSIVE.
+
+
+//-------------------------------------------
+/**
+// CIPHERTEXTS :: 1 to 5
+// ID's :: 6 to 7
+// Card Details :: 8 to 15
+// Nonces :: 10 to 15
+**/
+//-------------------------------------------
+
+
+//
+/** Declarations **/
+//
+
+
+//Channels
+chan Asingle, Dsingle, Across, Adouble, Ddouble;
+chan initmsg, cardExpiration, branchVisit, cardDelivery, cashPoint, receiveCard, cardPickup;
+
+//Communication
+int message;
+
+//Bank Knowledge
+// IDs
+int myID = 6;
+int customerID=7;
+
+//Details
+int currentCardNumber=8;
+int newCardNumber=9;
+
+//Cryptography
+chan start_encrypt, finish_encrypt, start_decrypt, finish_decrypt, start_nonce, finish_nonce;
+int param1, param2, result;
+int shift = 4; // Shift is the length of each message component
+int unmask = 15; // unmask is the largest number stored by a message component
+
+//AttackerComm
+bool step1, step2, step3, step4;
+bool inBillingAddress, inCurrentAddress = true, inBranch, inATM;
+chan brain;
+int stage;
+
+bool gothere;
+
+</declaration><template><name x="5" y="5">Branch</name><parameter>int PIN</parameter><declaration>//Protocol knowledge
+int receivedID;
+int receivedInfo;
+
+//Flags for Verification
+bool authenticated;
+bool customerEntered;
+
+
+
+
+</declaration><location id="id0" x="-120" y="-104"><name x="-136" y="-136">Start</name></location><location id="id1" x="208" y="264"><name x="216" y="232">NewCardReady</name><committed/></location><location id="id2" x="208" y="168"><name x="144" y="136">EncryptingNewCard</name><committed/></location><location id="id3" x="-128" y="0"><name x="-189" y="-32">CheckingDetails</name><committed/></location><location id="id4" x="200" y="0"><name x="160" y="12">DecryptingDetails</name><committed/></location><location id="id5" x="200" y="-104"><name x="152" y="-136">ReceivedDetails</name><committed/></location><location id="id6" x="32" y="264"><name x="-24" y="232">NewCardDelivered</name></location><location id="id7" x="-128" y="168"><name x="-234" y="180">CustomerAuthenticated</name></location><location id="id8" x="32" y="-104"><name x="-20" y="-143">AwaitingCustomer</name></location><init ref="id0"/><transition><source ref="id0"/><target ref="id8"/><label kind="synchronisation" x="-72" y="-124">initmsg?</label></transition><transition><source ref="id1"/><target ref="id6"/><label kind="synchronisation" x="91" y="246">cardPickup!</label><label kind="assignment" x="88" y="264">step2=true</label></transition><transition><source ref="id2"/><target ref="id1"/><label kind="synchronisation" x="216" y="191">finish_encrypt?</label><label kind="assignment" x="213" y="204">message=result</label></transition><transition><source ref="id7"/><target ref="id2"/><label kind="synchronisation" x="0" y="144">start_encrypt!</label><label kind="assignment" x="-80" y="168">param1=(myID&lt;&lt;shift)|newCardNumber,
+param2=PIN</label></transition><transition><source ref="id3"/><target ref="id7"/><label kind="guard" x="-120" y="32">receivedInfo == currentCardNumber &amp;&amp; 
+receivedID == customerID &amp;&amp;
+receivedID &gt;= 6 &amp;&amp;
+receivedID &lt;= 7 &amp;&amp;
+receivedInfo &gt;= 8 &amp;&amp;
+receivedInfo &lt;= 15</label><label kind="assignment" x="-120" y="128">authenticated = true</label><label kind="comments">We allow nonces to be accepted as card details as we assume that the attacker can create nonces of that type</label></transition><transition><source ref="id4"/><target ref="id3"/><label kind="synchronisation" x="-7" y="-51">finish_decrypt?</label><label kind="assignment" x="-56" y="-35">receivedID=(result&gt;&gt;shift)&amp;unmask,
+receivedInfo=result&amp;unmask</label></transition><transition><source ref="id5"/><target ref="id4"/><label kind="synchronisation" x="208" y="-78">start_decrypt!</label><label kind="assignment" x="208" y="-64">param1 = message,
+param2 = PIN</label></transition><transition><source ref="id8"/><target ref="id5"/><label kind="synchronisation" x="64" y="-120">branchVisit?</label><label kind="assignment" x="48" y="-104">customerEntered=true</label></transition></template><template><name>Customer</name><parameter>int PIN</parameter><declaration>// IDs
+int myID = 7;
+int bankID = 6;
+
+//Details
+int myCardDetails = 8;
+
+//Protocol Knowledge
+int receivedDetails;
+int receivedID;
+
+//Flags for Verification
+bool cardReceived;
+bool visitedBranch;
+bool visitedBillingAddress;
+bool visitedATM;
+</declaration><location id="id9" x="-645" y="-3355"><name x="-661" y="-3387">Start</name></location><location id="id10" x="-781" y="-3367"><name x="-765" y="-3375">Stop</name></location><location id="id11" x="-781" y="-2999"><name x="-765" y="-3007">UpdatedCard</name></location><location id="id12" x="-389" y="-3071"><name x="-501" y="-3079">RequestedCard</name></location><location id="id13" x="-781" y="-2815"><name x="-776" y="-2845">Decrypted</name><committed/></location><location id="id14" x="-541" y="-2815"><name x="-573" y="-2847">Decrypting</name><committed/></location><location id="id15" x="-389" y="-2815"><name x="-413" y="-2807">ReceivedNewCard</name><committed/></location><location id="id16" x="-781" y="-3295"><name x="-765" y="-3303">EnteredDetails</name><committed/></location><location id="id17" x="-781" y="-3223"><name x="-765" y="-3231">EncryptNewCard</name><committed/></location><location id="id18" x="-389" y="-3159"><name x="-496" y="-3171">EncryptedCard</name><committed/></location><location id="id19" x="-389" y="-3255"><name x="-509" y="-3263">EncryptFirstCard</name><committed/></location><location id="id20" x="-781" y="-3135"><name x="-765" y="-3151">ATM</name></location><location id="id21" x="-781" y="-3071"><name x="-765" y="-3079">NML3</name></location><location id="id22" x="-389" y="-2911"><name x="-493" y="-2919">BillingAddress</name></location><location id="id23" x="-389" y="-3007"><name x="-445" y="-3015">NML2</name></location><location id="id24" x="-390" y="-3353"><name x="-406" y="-3385">Branch</name></location><location id="id25" x="-553" y="-3354"><name x="-569" y="-3385">NML1</name></location><init ref="id9"/><transition><source ref="id9"/><target ref="id25"/><label kind="synchronisation" x="-624" y="-3371">initmsg!</label></transition><transition><source ref="id11"/><target ref="id21"/><label kind="synchronisation" x="-773" y="-3047">Dsingle!</label></transition><transition><source ref="id12"/><target ref="id23"/><label kind="synchronisation" x="-445" y="-3055">Dsingle!</label></transition><transition><source ref="id13"/><target ref="id11"/><label kind="guard" x="-773" y="-2943">receivedID == bankID &amp;&amp;
+receivedID &gt;= 6 &amp;&amp;
+receivedID &lt;= 7 &amp;&amp;
+receivedDetails &gt;= 8 &amp;&amp; 
+receivedDetails &lt;= 15 &amp;&amp;
+receivedDetails != myCardDetails</label><label kind="assignment" x="-773" y="-2975">myCardDetails = receivedDetails,
+cardReceived = true</label></transition><transition><source ref="id14"/><target ref="id13"/><label kind="synchronisation" x="-709" y="-2831">finish_decrypt?</label><label kind="assignment" x="-765" y="-2815">receivedDetails = result&amp;unmask,
+receivedID = (result&gt;&gt;shift)&amp;unmask,
+visitedBillingAddress=true</label></transition><transition><source ref="id15"/><target ref="id14"/><label kind="synchronisation" x="-501" y="-2831">start_decrypt!</label><label kind="assignment" x="-525" y="-2815">param1=message,
+param2=PIN</label></transition><transition><source ref="id16"/><target ref="id10"/><label kind="synchronisation" x="-773" y="-3359">cashPoint!</label><label kind="assignment" x="-773" y="-3343">visitedATM = true,
+step3=true</label></transition><transition><source ref="id17"/><target ref="id16"/><label kind="synchronisation" x="-773" y="-3279">finish_encrypt?</label><label kind="assignment" x="-773" y="-3263">message = result</label></transition><transition><source ref="id20"/><target ref="id17"/><label kind="synchronisation" x="-773" y="-3207">start_encrypt!</label><label kind="assignment" x="-773" y="-3191">param1 = (myID&lt;&lt;shift)|myCardDetails,
+param2 = PIN</label></transition><transition><source ref="id18"/><target ref="id12"/><label kind="synchronisation" x="-469" y="-3135">branchVisit!</label><label kind="assignment" x="-461" y="-3119">step1=true</label></transition><transition><source ref="id19"/><target ref="id18"/><label kind="synchronisation" x="-485" y="-3223">finish_encrypt?</label><label kind="assignment" x="-501" y="-3207">message = result</label></transition><transition><source ref="id24"/><target ref="id19"/><label kind="synchronisation" x="-477" y="-3335">start_encrypt!</label><label kind="assignment" x="-637" y="-3311">param1 = (myID&lt;&lt;shift)|myCardDetails,
+param2 = PIN</label></transition><transition><source ref="id22"/><target ref="id15"/><label kind="synchronisation" x="-477" y="-2879">receiveCard?</label></transition><transition><source ref="id21"/><target ref="id20"/><label kind="guard" x="-773" y="-3111">cardReceived</label><label kind="synchronisation" x="-773" y="-3127">Asingle!</label></transition><transition><source ref="id23"/><target ref="id22"/><label kind="synchronisation" x="-445" y="-2967">Asingle!</label></transition><transition><source ref="id25"/><target ref="id24"/><label kind="synchronisation" x="-493" y="-3373">Asingle!</label><label kind="assignment" x="-535" y="-3357">visitedBranch = true</label></transition></template><template><name>Mov</name><location id="id26" x="0" y="0"><name x="-80" y="-32">MovControl</name></location><init ref="id26"/><transition><source ref="id26"/><target ref="id26"/><label kind="synchronisation" x="40" y="-72">Across?</label><nail x="40" y="-48"/><nail x="64" y="-56"/><nail x="56" y="-40"/></transition><transition><source ref="id26"/><target ref="id26"/><label kind="synchronisation" x="-176" y="-16">Ddouble?</label><nail x="-120" y="0"/><nail x="-120" y="24"/></transition><transition><source ref="id26"/><target ref="id26"/><label kind="synchronisation" x="8" y="112">Adouble?</label><nail x="-8" y="112"/><nail x="24" y="112"/></transition><transition><source ref="id26"/><target ref="id26"/><label kind="synchronisation" x="88" y="-24">Dsingle?</label><nail x="144" y="0"/><nail x="144" y="24"/></transition><transition><source ref="id26"/><target ref="id26"/><label kind="synchronisation" x="-16" y="-152">Asingle?</label><nail x="0" y="-128"/><nail x="24" y="-128"/></transition></template><template><name>Cryptodevice</name><declaration>//Ciphertext Creation
+int plain[6];
+int key[6];
+int max = 6;
+int index = 1;
+
+//Nonce Creation
+int gennonce = 9;
+int seed = 1;
+int maxnonce = 15;
+</declaration><location id="id27" x="-592" y="-88"><name x="-632" y="-120">Fresh</name></location><location id="id28" x="-64" y="-88"><name x="-56" y="-120">Decrypting</name></location><location id="id29" x="-336" y="-248"><name x="-360" y="-288">Encrypting</name></location><location id="id30" x="-336" y="-88"><name x="-328" y="-120">Idling</name></location><init ref="id30"/><transition><source ref="id27"/><target ref="id30"/><label kind="synchronisation" x="-504" y="-64">finish_nonce!</label><nail x="-464" y="-64"/></transition><transition><source ref="id30"/><target ref="id27"/><label kind="guard" x="-552" y="-160">gennonce &lt; maxnonce</label><label kind="synchronisation" x="-552" y="-112">start_nonce?</label><label kind="assignment" x="-552" y="-144">gennonce += seed,
+result = gennonce</label></transition><transition><source ref="id28"/><target ref="id30"/><label kind="guard" x="-304" y="-48">param1&lt;max &amp;&amp; key[param1] == param2</label><label kind="synchronisation" x="-232" y="-64">finish_decrypt!</label><label kind="assignment" x="-256" y="-32">result = plain[param1]</label><nail x="-192" y="-64"/></transition><transition><source ref="id30"/><target ref="id28"/><label kind="synchronisation" x="-232" y="-112">start_decrypt?</label></transition><transition><source ref="id29"/><target ref="id30"/><label kind="synchronisation" x="-448" y="-192">finish_encrypt!</label><nail x="-352" y="-168"/></transition><transition><source ref="id30"/><target ref="id29"/><label kind="guard" x="-320" y="-224">index &lt; max</label><label kind="synchronisation" x="-320" y="-208">start_encrypt?</label><label kind="assignment" x="-320" y="-192">plain[index] = param1,
+key[index] = param2,
+result = index,
+index += 1</label></transition></template><template><name>AttackerBrain</name><declaration>int i;
+int max_op = 4;
+int data;
+bool initialised, executed1, executed2, executed3, executed4, analysedFirstBlock, analysedSecondBlock, nonced;
+
+//Initial Knowledge
+int PIN = 34;
+int C=7;
+int B=6;
+int currentCardDetails=8;
+int newCardDetails;
+
+//Knowledge
+int nonce;
+int firstBlock, secondBlock, thirdBlock;
+int PINinUse;
+
+//Placeholders for Rules
+int data2, block;
+
+//Message construction tools
+bool encrypted, decrypted;
+
+bool cut = false;</declaration><location id="id31" x="-1312" y="158"><name x="-1336" y="128">Noncing</name><committed/></location><location id="id32" x="-1440" y="398"><name x="-1525" y="407">MessageUpdated</name><committed/></location><location id="id33" x="-1216" y="398"><name x="-1231" y="405">BuildMessage</name><committed/></location><location id="id34" x="-664" y="398"><name x="-698" y="406">DYConstruction</name><committed/></location><location id="id35" x="-776" y="286"><name x="-799" y="294">Decrypting</name><committed/></location><location id="id36" x="-776" y="182"><name x="-806" y="151">Encrypting</name><committed/></location><location id="id37" x="-928" y="238"><name x="-1010" y="206">ChooseEncDec</name><committed/></location><location id="id38" x="-1096" y="238"><name x="-1102" y="206">ChooseKey</name><committed/></location><location id="id39" x="-1440" y="230"><name x="-1515" y="203">ChooseMC</name><committed/></location><location id="id40" x="-584" y="-22"><name x="-569" y="-33">DYAnalysis</name><committed/></location><location id="id41" x="-1064" y="73"><name x="-1146" y="82">StagedMessage</name></location><location id="id42" x="-1040" y="-23"><name x="-1157" y="-31">DYSendReceive</name><committed/></location><location id="id43" x="-1526" y="-17"><name x="-1552" y="-10">Idling</name></location><init ref="id43"/><transition><source ref="id42"/><target ref="id40"/><label kind="guard" x="-986" y="8">executed2 == true &amp;&amp;
+decrypted == true</label><label kind="assignment" x="-837" y="19">newCardDetails=data&amp;unmask</label><nail x="-997" y="45"/><nail x="-640" y="44"/></transition><transition><source ref="id42"/><target ref="id40"/><label kind="guard" x="-988" y="-45">step2 == true</label><label kind="assignment" x="-801" y="-59">secondBlock=data,
+executed2=true</label></transition><transition><source ref="id42"/><target ref="id40"/><nail x="-1010" y="-82"/><nail x="-612" y="-82"/></transition><transition><source ref="id31"/><target ref="id38"/><label kind="synchronisation" x="-1272" y="142">finish_nonce?</label><label kind="assignment" x="-1291" y="154">block=result&amp;unmask,
+nonced=true</label><nail x="-1144" y="158"/></transition><transition><source ref="id39"/><target ref="id31"/><label kind="guard" x="-1428" y="154">nonced==false</label><label kind="synchronisation" x="-1421" y="138">start_nonce!</label><nail x="-1432" y="158"/></transition><transition><source ref="id43"/><target ref="id43"/><label kind="synchronisation" x="-1407" y="-30">initmsg!</label><label kind="assignment" x="-1407" y="-18">executed2 = false</label><nail x="-1412" y="-19"/><nail x="-1413" y="4"/></transition><transition><source ref="id43"/><target ref="id42"/><label kind="synchronisation" x="-1378" y="-112">initmsg?</label><label kind="assignment" x="-1284" y="-110">i=0</label><nail x="-1527" y="-93"/><nail x="-1052" y="-92"/></transition><transition><source ref="id38"/><target ref="id34"/><nail x="-1064" y="318"/><nail x="-736" y="318"/></transition><transition><source ref="id32"/><target ref="id38"/><label kind="guard" x="-1346" y="314">i&lt;max_op</label><label kind="assignment" x="-1278" y="315">block=data</label><nail x="-1440" y="334"/><nail x="-1096" y="334"/></transition><transition><source ref="id33"/><target ref="id32"/><label kind="assignment" x="-1374" y="413">data=data2, i+=1</label><nail x="-1241" y="416"/><nail x="-1399" y="417"/></transition><transition><source ref="id40"/><target ref="id42"/><nail x="-586" y="107"/><nail x="-1040" y="109"/></transition><transition><source ref="id32"/><target ref="id42"/><nail x="-1522" y="399"/><nail x="-1520" y="112"/><nail x="-1040" y="109"/></transition><transition><source ref="id32"/><target ref="id39"/><label kind="guard" x="-1502" y="292">i&lt;max_op</label></transition><transition><source ref="id33"/><target ref="id32"/><label kind="guard" x="-1357" y="358">data&lt;16</label><label kind="assignment" x="-1400" y="374">data=(data&lt;&lt;shift)|data2,
+i+=1</label><nail x="-1240" y="374"/><nail x="-1400" y="374"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1056" y="406">nonce != 0</label><label kind="assignment" x="-928" y="406">data2 = nonce</label><nail x="-752" y="422"/><nail x="-1073" y="422"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1080" y="390">newCardDetails != 0</label><label kind="assignment" x="-928" y="390">data2 = newCardDetails</label><nail x="-752" y="406"/><nail x="-1136" y="406"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1088" y="374">currentCardDetails != 0</label><label kind="assignment" x="-928" y="374">data2 = currentCardDetails</label><nail x="-752" y="390"/><nail x="-1136" y="390"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1048" y="358">B != 0</label><label kind="assignment" x="-928" y="358">data2 = B</label><nail x="-752" y="374"/><nail x="-1091" y="374"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1048" y="342">C != 0</label><label kind="assignment" x="-928" y="342">data2 = C</label><nail x="-752" y="358"/><nail x="-1093" y="357"/></transition><transition><source ref="id34"/><target ref="id33"/><label kind="guard" x="-1056" y="326">result != 0</label><label kind="assignment" x="-928" y="326">data2=result</label><nail x="-752" y="342"/><nail x="-1093" y="343"/></transition><transition><source ref="id35"/><target ref="id34"/><label kind="synchronisation" x="-760" y="251">finish_decrypt?</label><label kind="assignment" x="-760" y="265">decrypted=true</label><nail x="-664" y="286"/></transition><transition><source ref="id37"/><target ref="id35"/><label kind="guard" x="-905" y="236">decrypted==false</label><label kind="synchronisation" x="-904" y="248">start_decrypt!</label><label kind="assignment" x="-904" y="262">param1=block,
+param2=PINinUse</label><nail x="-776" y="238"/></transition><transition><source ref="id36"/><target ref="id34"/><label kind="synchronisation" x="-723" y="162">finish_encrypt?</label><label kind="assignment" x="-727" y="180">encrypted=true</label><nail x="-608" y="182"/><nail x="-608" y="398"/></transition><transition><source ref="id37"/><target ref="id36"/><label kind="guard" x="-905" y="177">encrypted==false</label><label kind="synchronisation" x="-905" y="189">start_encrypt!</label><label kind="assignment" x="-904" y="202">param1=block,
+param2=PINinUse</label><nail x="-776" y="238"/></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1417" y="280">currentCardDetails != 0</label><label kind="assignment" x="-1268" y="279">block = currentCardDetails</label><nail x="-1424" y="298"/><nail x="-1101" y="298"/></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1410" y="260">newCardDetails != 0</label><label kind="assignment" x="-1268" y="259">block = newCardDetails</label><nail x="-1416" y="278"/><nail x="-1114" y="276"/></transition><transition><source ref="id38"/><target ref="id37"/><label kind="guard" x="-1062" y="254">(encrypted==false || 
+decrypted==false)</label><label kind="assignment" x="-1056" y="238">PINinUse = PIN</label></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1395" y="240">secondBlock != 0</label><label kind="assignment" x="-1269" y="238">block = secondBlock</label><nail x="-1407" y="257"/><nail x="-1136" y="256"/></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1384" y="222">firstBlock != 0</label><label kind="assignment" x="-1272" y="222">block = firstBlock</label><nail x="-1416" y="238"/><nail x="-1136" y="238"/></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1360" y="206">B != 0</label><label kind="assignment" x="-1256" y="206">block = B</label><nail x="-1376" y="222"/><nail x="-1168" y="222"/></transition><transition><source ref="id39"/><target ref="id38"/><label kind="guard" x="-1360" y="190">C != 0</label><label kind="assignment" x="-1256" y="190">block = C</label><nail x="-1368" y="206"/><nail x="-1152" y="206"/></transition><transition><source ref="id40"/><target ref="id39"/><label kind="assignment" x="-1083" y="121">data=0,result=0</label><nail x="-585" y="121"/><nail x="-1440" y="125"/></transition><transition><source ref="id41"/><target ref="id43"/><label kind="guard" x="-1408" y="64">inATM</label><label kind="synchronisation" x="-1320" y="64">cashPoint!</label><nail x="-1186" y="81"/><nail x="-1420" y="81"/></transition><transition><source ref="id41"/><target ref="id43"/><label kind="guard" x="-1408" y="32">inBillingAddress</label><label kind="synchronisation" x="-1296" y="32">cardDelivery!</label><nail x="-1240" y="48"/><nail x="-1416" y="48"/></transition><transition><source ref="id41"/><target ref="id43"/><label kind="guard" x="-1408" y="48">inBranch</label><label kind="synchronisation" x="-1320" y="48">branchVisit!</label><nail x="-1224" y="64"/><nail x="-1416" y="64"/></transition><transition><source ref="id43"/><target ref="id42"/><label kind="guard" x="-1512" y="-71">inBillingAddress</label><label kind="synchronisation" x="-1392" y="-72">cardDelivery?</label><label kind="assignment" x="-1288" y="-71">i=0, data=message</label><nail x="-1528" y="-55"/><nail x="-1048" y="-55"/></transition><transition><source ref="id43"/><target ref="id42"/><label kind="guard" x="-1509" y="-54">inATM</label><label kind="synchronisation" x="-1388" y="-54">cashPoint?</label><label kind="assignment" x="-1288" y="-55">i=0, data=message</label><nail x="-1522" y="-38"/><nail x="-1076" y="-36"/></transition><transition><source ref="id42"/><target ref="id41"/><label kind="assignment" x="-1159" y="-17">message=data,
+encrypted=false,
+decrypted=false,
+nonced=false,
+nonce=0</label></transition><transition><source ref="id43"/><target ref="id42"/><label kind="guard" x="-1508" y="-92">inBranch</label><label kind="synchronisation" x="-1388" y="-93">branchVisit?</label><label kind="assignment" x="-1284" y="-92">i=0, data=message</label><nail x="-1524" y="-76"/><nail x="-1052" y="-76"/></transition></template>
+
+
+
+	<template><name>ATM</name><parameter>int PIN</parameter><declaration>//Protocol knowledge
+int receivedID;
+int receivedInfo;
+
+bool newCardActivated;</declaration><location id="id48" x="-329" y="-7"><name x="-314" y="-18">VerifiedNewCard</name></location><location id="id49" x="-329" y="-117"><name x="-374" y="-148">ReceivedNewDetails</name></location><location id="id50" x="-70" y="-117"><name x="-117" y="-106">DecryptingNewCard</name></location><location id="id51" x="-71" y="-213"><name x="-119" y="-245">ReceivedRequest</name></location><location id="id52" x="-266" y="-213"><name x="-322" y="-245">ReceivingRequest</name></location><init ref="id52"/><transition><source ref="id49"/><target ref="id48"/><label kind="guard" x="-320" y="-74">receivedInfo == newCardNumber &amp;&amp; 
+receivedID == customerID</label><label kind="assignment" x="-320" y="-48">currentCardNumber = receivedInfo,
+newCardActivated = true</label></transition><transition><source ref="id50"/><target ref="id49"/><label kind="synchronisation" x="-231" y="-137">finish_decrypt?</label><label kind="assignment" x="-305" y="-120">receivedID=(result&gt;&gt;shift)&amp;unmask,
+receivedInfo=result&amp;unmask</label></transition><transition><source ref="id51"/><target ref="id50"/><label kind="synchronisation" x="-159" y="-198">start_decrypt!</label><label kind="assignment" x="-188" y="-183">param1=message,
+param2=PIN</label></transition><transition><source ref="id52"/><target ref="id51"/><label kind="synchronisation" x="-204" y="-232">cashPoint?</label></transition></template><template><name>BillingAddress</name><declaration>int package;</declaration><location id="id53" x="-663" y="-179"><name x="-677" y="-169">Stop</name></location><location id="id54" x="-662" y="-276"><name x="-700" y="-311">CardDelivered</name></location><location id="id55" x="-828" y="-276"><name x="-915" y="-267">WaitingForCard</name></location><init ref="id55"/><transition><source ref="id54"/><target ref="id53"/><label kind="synchronisation" x="-746" y="-234">receiveCard!</label></transition><transition><source ref="id55"/><target ref="id54"/><label kind="synchronisation" x="-789" y="-296">cardDelivery?</label><label kind="assignment" x="-810" y="-278">package = message</label></transition></template><template><name>Courier</name><declaration>int envelope;</declaration><location id="id56" x="-263" y="-27"><name x="-277" y="-16">Stop</name></location><location id="id57" x="-96" y="-157"><name x="-136" y="-189">CardPickedUp</name></location><location id="id58" x="-264" y="-84"><name x="-307" y="-121">BillingAddress</name></location><location id="id59" x="-96" y="-83"><name x="-116" y="-72">NML2</name></location><location id="id60" x="-265" y="-157"><name x="-284" y="-189">Branch</name></location><location id="id61" x="-351" y="-157"><name x="-368" y="-187">NML</name></location><init ref="id61"/><transition><source ref="id58"/><target ref="id56"/><label kind="synchronisation" x="-356" y="-74">cardDelivery!</label><label kind="assignment" x="-404" y="-60">message = envelope</label></transition><transition><source ref="id57"/><target ref="id59"/><label kind="synchronisation" x="-188" y="-132">Dsingle!</label></transition><transition><source ref="id59"/><target ref="id58"/><label kind="synchronisation" x="-223" y="-85">Asingle!</label></transition><transition><source ref="id60"/><target ref="id57"/><label kind="synchronisation" x="-215" y="-175">cardPickup?</label><label kind="assignment" x="-245" y="-157">envelope = message</label></transition><transition><source ref="id61"/><target ref="id60"/><label kind="synchronisation" x="-334" y="-178">Asingle!</label></transition></template><system>// Place template instantiations here.
+cus = Customer(34);
+courier = Courier();
+billingaddress = BillingAddress();
+branch = Branch(34);
+atm = ATM(34);
+mov = Mov();
+crypto = Cryptodevice();
+att = Attacker();
+abrain = AttackerBrain();
+
+// List one or more processes to be composed into a system.
+system cus, courier, branch, billingaddress, atm, mov , crypto, att, abrain;
+//system cus, branch, courier, billingaddress, atm, mov , crypto;</system></nta>
